@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyTel - OTel Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f0f12;
+            --surface: #18181c;
+            --surface-elevated: #1f1f24;
+            --border: #2a2a30;
+            --text: #f4f4f5;
+            --text-muted: #71717a;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #22c55e;
+            --warning: #eab308;
+            --error: #ef4444;
+            --info: #3b82f6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        .header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .header h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .header h1 span { color: var(--accent); }
+        .stats {
+            display: flex;
+            gap: 1rem;
+        }
+        .stat {
+            background: var(--surface);
+            padding: 0.4rem 0.9rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .stat strong { color: var(--accent); margin-right: 0.2rem; }
+        .tabs {
+            display: flex;
+            gap: 0;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .tab {
+            padding: 0.9rem 1.2rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .panel {
+            display: none;
+            padding: 1.5rem;
+            max-height: calc(100vh - 160px);
+            overflow: auto;
+        }
+        .panel.active { display: block; }
+        .panel h2 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .empty {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+        .empty p { margin-bottom: 0.5rem; }
+        .empty code { color: var(--accent); font-size: 0.85rem; background: var(--surface); padding: 0.2rem 0.4rem; border-radius: 4px; }
+        .refresh {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .refresh:hover { background: var(--surface-elevated); }
+        .auto-refresh { font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem; }
+
+        /* Logs */
+        .log-batch {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .log-batch-header {
+            padding: 0.75rem 1rem;
+            background: var(--surface-elevated);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .log-batch-service { color: var(--accent); font-weight: 500; }
+        .log-record {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .log-record:last-child { border-bottom: none; }
+        .log-record:hover { background: rgba(99, 102, 241, 0.05); }
+        .log-record-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+        .log-event-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            background: var(--accent);
+            color: white;
+        }
+        .log-event-badge.api { background: var(--info); }
+        .log-event-badge.tool { background: var(--success); }
+        .log-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .log-summary {
+            font-size: 0.85rem;
+            color: var(--text);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .log-kv {
+            display: inline-flex;
+            gap: 0.35rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+        }
+        .log-kv .k { color: var(--text-muted); }
+        .log-kv .v { color: var(--accent); }
+        .log-details {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed var(--border);
+            display: none;
+        }
+        .log-record.expanded .log-details { display: block; }
+        .log-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.5rem;
+            font-size: 0.78rem;
+        }
+        .log-details-item {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .log-details-item .k { color: var(--text-muted); display: block; font-size: 0.7rem; margin-bottom: 0.1rem; }
+        .log-toggle {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0.2rem 0;
+        }
+        .log-toggle:hover { color: var(--accent); }
+
+        /* Metrics */
+        .metrics-batch {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .metrics-batch-header {
+            padding: 0.75rem 1rem;
+            background: var(--surface-elevated);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .metrics-batch-service { color: var(--accent); font-weight: 500; }
+        .metric-card {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .metric-card:last-child { border-bottom: none; }
+        .metric-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+        .metric-desc { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+        .metric-datapoints {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .metric-dp {
+            background: var(--surface-elevated);
+            border-radius: 6px;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 1rem;
+        }
+        .metric-unit { color: var(--text-muted); font-size: 0.75rem; margin-left: 0.25rem; }
+        .metric-attrs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .metric-attr {
+            font-size: 0.72rem;
+            padding: 0.15rem 0.4rem;
+            background: var(--border);
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .metric-attr .k { color: var(--text-muted); }
+        .metric-attr .v { color: var(--text); }
+
+        /* Traces */
+        .trace-batch {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .trace-batch-header {
+            padding: 0.75rem 1rem;
+            background: var(--surface-elevated);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .trace-span {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .trace-span:last-child { border-bottom: none; }
+        .trace-span-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; }
+        .trace-span-meta { font-size: 0.78rem; color: var(--text-muted); }
+        .trace-raw {
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            background: var(--bg);
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            max-height: 150px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text-muted);
+        }
+        .raw-toggle {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .raw-toggle:hover { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>My<span>Tel</span> Dashboard</h1>
+        <div class="stats">
+            <span class="stat"><strong id="stat-traces">0</strong> traces</span>
+            <span class="stat"><strong id="stat-metrics">0</strong> metrics</span>
+            <span class="stat"><strong id="stat-logs">0</strong> logs</span>
+        </div>
+        <div>
+            <button class="refresh" onclick="loadAll()">Refresh</button>
+            <span class="auto-refresh">Auto-refresh: 5s</span>
+        </div>
+    </header>
+    <nav class="tabs">
+        <button class="tab" data-tab="logs">Logs</button>
+        <button class="tab" data-tab="metrics">Metrics</button>
+        <button class="tab" data-tab="traces">Traces</button>
+    </nav>
+    <main>
+        <section class="panel active" id="panel-logs">
+            <h2>Event Logs</h2>
+            <div id="logs-list"></div>
+        </section>
+        <section class="panel" id="panel-metrics">
+            <h2>Metrics</h2>
+            <div id="metrics-list"></div>
+        </section>
+        <section class="panel" id="panel-traces">
+            <h2>Traces</h2>
+            <div id="traces-list"></div>
+        </section>
+    </main>
+    <script>
+        const API = '';
+
+        function attrVal(v) {
+            if (!v) return '—';
+            if (v.stringValue !== undefined) return v.stringValue;
+            if (v.intValue !== undefined) return String(v.intValue);
+            if (v.doubleValue !== undefined) return Number(v.doubleValue).toLocaleString();
+            if (v.boolValue !== undefined) return v.boolValue ? 'true' : 'false';
+            if (v.bytesValue !== undefined) return '<binary>';
+            return JSON.stringify(v);
+        }
+
+        function getAttr(attrs, key) {
+            const a = (attrs || []).find(x => x.key === key);
+            return a ? attrVal(a.value) : null;
+        }
+
+        function formatNano(nano) {
+            if (!nano) return '—';
+            const ms = Number(nano) / 1e6;
+            return new Date(ms).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+        }
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function saveExpandedState() {
+            const expanded = new Set();
+            document.querySelectorAll('.log-record.expanded').forEach(el => {
+                if (el.dataset.expandId) expanded.add(el.dataset.expandId);
+            });
+            return expanded;
+        }
+
+        function renderLogs(items, expandedIds) {
+            const el = document.getElementById('logs-list');
+            if (!items.length) {
+                el.innerHTML = '<div class="empty"><p>No logs yet.</p><p>Send OTLP logs to <code>POST /v1/logs</code></p></div>';
+                return;
+            }
+            let html = '';
+            let globalIdx = 0;
+            for (const { data, receivedAt } of items) {
+                const rl = data.resourceLogs || [];
+                for (const res of rl) {
+                    const service = getAttr(res.resource?.attributes, 'service.name') || 'unknown';
+                    const scopeLogs = res.scopeLogs || [];
+                    for (const sl of scopeLogs) {
+                        const records = sl.logRecords || [];
+                        if (!records.length) continue;
+                        html += `<div class="log-batch">
+                            <div class="log-batch-header">
+                                <span class="log-batch-service">${escapeHtml(service)}</span>
+                                <span>${records.length} event(s)</span>
+                                <span>Received ${new Date(receivedAt).toLocaleTimeString()}</span>
+                            </div>`;
+                        for (const rec of records) {
+                            const body = rec.body?.stringValue || '—';
+                            const eventName = getAttr(rec.attributes, 'event.name') || body;
+                            const seq = getAttr(rec.attributes, 'event.sequence') || '';
+                            const expandId = `log-${receivedAt}-${rec.timeUnixNano || ''}-${seq}-${(eventName || '').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                            const time = formatNano(rec.timeUnixNano);
+                            const model = getAttr(rec.attributes, 'model');
+                            const cost = getAttr(rec.attributes, 'cost_usd');
+                            const inTok = getAttr(rec.attributes, 'input_tokens');
+                            const outTok = getAttr(rec.attributes, 'output_tokens');
+                            const duration = getAttr(rec.attributes, 'duration_ms');
+                            let badgeClass = '';
+                            if (eventName.includes('api_request')) badgeClass = 'api';
+                            else if (eventName.includes('tool')) badgeClass = 'tool';
+                            const summaryParts = [];
+                            if (model) summaryParts.push(`<span class="log-kv"><span class="k">model</span><span class="v">${escapeHtml(model)}</span></span>`);
+                            if (cost) {
+                                const costNum = parseFloat(cost);
+                                const costStr = costNum < 0.01 ? costNum.toFixed(6) : costNum.toFixed(4);
+                                summaryParts.push(`<span class="log-kv"><span class="k">cost</span><span class="v">$${costStr}</span></span>`);
+                            }
+                            if (inTok || outTok) summaryParts.push(`<span class="log-kv"><span class="k">tokens</span><span class="v">${escapeHtml(inTok || '0')} in / ${escapeHtml(outTok || '0')} out</span></span>`);
+                            if (duration) summaryParts.push(`<span class="log-kv"><span class="k">duration</span><span class="v">${escapeHtml(duration)}ms</span></span>`);
+                            const allAttrs = (rec.attributes || []).map(a => `<div class="log-details-item"><span class="k">${escapeHtml(a.key)}</span>${escapeHtml(attrVal(a.value))}</div>`).join('');
+                            const isExpanded = expandedIds?.has(expandId);
+                            html += `<div class="log-record${isExpanded ? ' expanded' : ''}" data-expand-id="${escapeHtml(expandId)}" onclick="this.classList.toggle('expanded')">
+                                <div class="log-record-header">
+                                    <span class="log-event-badge ${badgeClass}">${escapeHtml(eventName)}</span>
+                                    <span class="log-time">${time}</span>
+                                </div>
+                                <div class="log-summary">${summaryParts.join('') || escapeHtml(body)}</div>
+                                <div class="log-details">
+                                    <div class="log-details-grid">${allAttrs}</div>
+                                </div>
+                            </div>`;
+                        }
+                        html += '</div>';
+                    }
+                }
+            }
+            el.innerHTML = html || '<div class="empty"><p>No log records found.</p></div>';
+        }
+
+        function renderMetrics(items) {
+            const el = document.getElementById('metrics-list');
+            if (!items.length) {
+                el.innerHTML = '<div class="empty"><p>No metrics yet.</p><p>Send OTLP metrics to <code>POST /v1/metrics</code></p></div>';
+                return;
+            }
+            let html = '';
+            for (const { data, receivedAt } of items) {
+                const rm = data.resourceMetrics || [];
+                for (const res of rm) {
+                    const service = getAttr(res.resource?.attributes, 'service.name') || 'unknown';
+                    const scopeMetrics = res.scopeMetrics || [];
+                    for (const sm of scopeMetrics) {
+                        const metrics = sm.metrics || [];
+                        if (!metrics.length) continue;
+                        html += `<div class="metrics-batch">
+                            <div class="metrics-batch-header">
+                                <span class="metrics-batch-service">${escapeHtml(service)}</span>
+                                <span>Received ${new Date(receivedAt).toLocaleTimeString()}</span>
+                            </div>`;
+                        for (const m of metrics) {
+                            const name = m.name || 'unknown';
+                            const desc = m.description || '';
+                            const unit = m.unit ? ` ${m.unit}` : '';
+                            const sum = m.sum;
+                            const gauge = m.gauge;
+                            const dataPoints = sum?.dataPoints || gauge?.dataPoints || [];
+                            html += `<div class="metric-card">
+                                <div class="metric-name">${escapeHtml(name)}</div>
+                                ${desc ? `<div class="metric-desc">${escapeHtml(desc)}</div>` : ''}
+                                <div class="metric-datapoints">`;
+                            for (const dp of dataPoints) {
+                                const val = dp.asDouble !== undefined ? dp.asDouble : dp.asInt;
+                                const formatted = typeof val === 'number' ? (val >= 1000 ? val.toLocaleString() : val) : val;
+                                const attrs = (dp.attributes || []).map(a => {
+                                    const v = attrVal(a.value);
+                                    return `<span class="metric-attr"><span class="k">${escapeHtml(a.key)}:</span> <span class="v">${escapeHtml(v)}</span></span>`;
+                                }).join('');
+                                html += `<div class="metric-dp">
+                                    <span><span class="metric-value">${escapeHtml(String(formatted))}</span><span class="metric-unit">${escapeHtml(unit)}</span></span>
+                                    <span class="metric-attrs">${attrs}</span>
+                                </div>`;
+                            }
+                            html += `</div></div>`;
+                        }
+                        html += '</div>';
+                    }
+                }
+            }
+            el.innerHTML = html || '<div class="empty"><p>No metric data found.</p></div>';
+        }
+
+        function renderTraces(items) {
+            const el = document.getElementById('traces-list');
+            if (!items.length) {
+                el.innerHTML = '<div class="empty"><p>No traces yet.</p><p>Send OTLP traces to <code>POST /v1/traces</code></p></div>';
+                return;
+            }
+            let html = '';
+            for (const { data, receivedAt } of items) {
+                const rl = data.resourceSpans || [];
+                for (const res of rl) {
+                    const service = getAttr(res.resource?.attributes, 'service.name') || 'unknown';
+                    const scopeSpans = res.scopeSpans || [];
+                    if (!scopeSpans.length) {
+                        html += `<div class="trace-batch">
+                            <div class="trace-batch-header">
+                                <span class="metrics-batch-service">${escapeHtml(service)}</span>
+                                <span>Received ${new Date(receivedAt).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="trace-span">
+                                <div class="trace-span-name">Resource span (no scope spans)</div>
+                                <details><summary class="raw-toggle">View raw JSON</summary>
+                                <pre class="trace-raw">${escapeHtml(JSON.stringify(data, null, 2))}</pre></details>
+                            </div>
+                        </div>`;
+                        continue;
+                    }
+                    for (const ss of scopeSpans) {
+                        const spans = ss.spans || [];
+                        if (!spans.length) {
+                            html += `<div class="trace-batch">
+                                <div class="trace-batch-header">
+                                    <span class="metrics-batch-service">${escapeHtml(service)}</span>
+                                    <span>Received ${new Date(receivedAt).toLocaleTimeString()}</span>
+                                </div>
+                                <div class="trace-span">
+                                    <div class="trace-span-name">Resource span (no child spans)</div>
+                                    <details><summary class="raw-toggle">View raw JSON</summary>
+                                    <pre class="trace-raw">${escapeHtml(JSON.stringify(data, null, 2))}</pre></details>
+                                </div>
+                            </div>`;
+                            continue;
+                        }
+                        html += `<div class="trace-batch">
+                            <div class="trace-batch-header">
+                                <span class="metrics-batch-service">${escapeHtml(service)}</span>
+                                <span>${spans.length} span(s)</span>
+                                <span>Received ${new Date(receivedAt).toLocaleTimeString()}</span>
+                            </div>`;
+                        for (const span of spans) {
+                            const name = span.name || 'unnamed';
+                            const start = formatNano(span.startTimeUnixNano);
+                            const end = formatNano(span.endTimeUnixNano);
+                            html += `<div class="trace-span">
+                                <div class="trace-span-name">${escapeHtml(name)}</div>
+                                <div class="trace-span-meta">${start} → ${end}</div>
+                                <details><summary class="raw-toggle">View attributes & raw</summary>
+                                <pre class="trace-raw">${escapeHtml(JSON.stringify(span, null, 2))}</pre></details>
+                            </div>`;
+                        }
+                        html += '</div>';
+                    }
+                }
+            }
+            el.innerHTML = html || '<div class="empty"><p>No trace spans found.</p></div>';
+        }
+
+        async function loadStats() {
+            try {
+                const r = await fetch(API + '/api/stats');
+                const s = await r.json();
+                document.getElementById('stat-traces').textContent = s.traces;
+                document.getElementById('stat-metrics').textContent = s.metrics;
+                document.getElementById('stat-logs').textContent = s.logs;
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        async function loadAll(skipIfUserActive = false) {
+            if (skipIfUserActive) {
+                if (document.getSelection()?.toString()?.length > 0) return;
+            }
+            const expanded = saveExpandedState();
+            const activeTab = document.querySelector('.tab.active')?.dataset?.tab;
+            const scrollTops = {};
+            document.querySelectorAll('.panel').forEach(p => {
+                const id = p.id.replace('panel-', '');
+                scrollTops[id] = p.scrollTop;
+            });
+            await loadStats();
+            try {
+                const [traces, metrics, logs] = await Promise.all([
+                    fetch(API + '/api/traces?limit=50').then(r => r.json()),
+                    fetch(API + '/api/metrics?limit=50').then(r => r.json()),
+                    fetch(API + '/api/logs?limit=50').then(r => r.json()),
+                ]);
+                renderLogs(logs, expanded);
+                renderMetrics(metrics);
+                renderTraces(traces);
+                Object.entries(scrollTops).forEach(([id, top]) => {
+                    const panel = document.getElementById('panel-' + id);
+                    if (panel) panel.scrollTop = top;
+                });
+            } catch (e) {
+                console.error('Failed to load data:', e);
+            }
+        }
+
+        document.querySelectorAll('.tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        loadAll();
+        setInterval(() => loadAll(true), 5000);
+    </script>
+</body>
+</html>
