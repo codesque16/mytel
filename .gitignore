@@ -11,8 +11,8 @@ build/
 .env.local
 .env.*.local
 
-# Logs
-logs/
+# Logs (application logs at project root only)
+/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
